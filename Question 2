@@ -1,0 +1,74 @@
+#Question 2
+foo <- read.csv("https://course-resources.minerva.kgi.edu/uploaded_files/mke/00086677-3767/peace.csv")
+foo <- foo[, c(6:8, 11:16, 99, 50, 114, 49, 63, 136, 109, 126, 48, 160, 142, 10)]
+foo <- foo[c(-19, -47), ]
+which(is.na(foo) == TRUE)
+
+#regression without interaction term
+glm1 <- glm(pbs2s3 ~ wartype + logcost + wardur + factnum +
+                      factnum2 + trnsfcap  + treaty + untype4 + develop +
+                      exp + decade, family = "binomial")
+
+#regression with interaction term                      
+glm2 <- glm(pbs2s3 ~ wartype + logcost + wardur + factnum +
+           factnum2 + trnsfcap + treaty  + untype4 + develop +
+           exp + decade + wardur*untype4, family = "binomial")
+           
+typem <- mean(wartype)
+costm <- mean(logcost)
+factm <-mean(factnum)
+fact2m <- mean(factnum2)
+trnsm <- mean(trnsfcap)
+develm <- mean(develop)
+expm <- mean(exp)
+decm <- mean(decade)
+treatm <- mean(treaty)
+
+#making vectors like we did in the previous assignment
+cont <- c()
+treat <- c()
+rep1 <- c()
+
+#we loop for each month for treatment effect without interaction term
+for(i in 1:315){ 
+     cont <- data.frame(typem,costm,i,factm,fact2m,trnsm,0,treatm,
+                           develm,expm,decm)
+     treat <- data.frame(typem,costm,i,factm,fact2m,trnsm,1,treatm,
+                            develm,expm,decm)
+     names(cont) <- c('wartype','logcost','wardur','factnum','factnum2','trnsfcap','untype4','treaty','develop',
+                         'exp','decade')
+     names(treat) <- c('wartype','logcost','wardur','factnum','factnum2','trnsfcap','untype4','treaty','develop',
+                          'exp','decade')
+     
+     rep1[i] <- mean(predict(glm1, newdata = treat,type = 'response'))- mean(predict(glm1, newdata = cont, type = 'response'))
+ }
+
+cont2 <- c()
+treat2 <- c()
+rep2 <- c()
+
+> for(i in 1:315){
+     cont2 <- data.frame(typem,costm,i,factm,fact2m,trnsm,0,treatm,
+                            develm,expm,decm)
+     treat2 <- data.frame(typem,costm,i,factm,fact2m,trnsm,1,treatm,
+                             develm,expm,decm)
+     names(cont2) <- c('wartype','logcost','wardur','factnum','factnum2','trnsfcap','untype4','treaty','develop',
+                          'exp','decade')
+     names(treat2) <- c('wartype','logcost','wardur','factnum','factnum2','trnsfcap','untype4','treaty','develop',
+                           'exp','decade')
+     
+     rep2[i] <- mean(predict(glm2, newdata = treat2,type = 'response')) - mean(predict(glm2, newdata = cont2, type = 'response'))
+}
+
+#plotting
+plot(rep1, type = "l",lty = 'dotted',ylim = c(0,0.8),xlim = c(0,315),
+      xlab = '',ylab='',sub = "FIG. 8. Causal Effect of Multidimensional UN Peacekeeping Operations")
+ 
+par(new=TRUE)
+
+plot(rep2,type = "l", ylim = c(0,0.8),axes = FALSE,
+     ylab = "Marginal effects of UN peacekeeping operations",
+     xlab="Duration of wars in months",cex.lab=1.1)
+
+text(95,0.2,"Model with Interaction Term",cex=.8)
+text(205,0.4,"Dotted:Original Model",cex=.8)
