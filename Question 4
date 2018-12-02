@@ -1,0 +1,73 @@
+#Question 4
+
+#running regression to get the propensity scores
+glm_propensity <- glm(Tr ~ wartype + logcost + wardur + 
+  factnum + factnum2 + trnsfcap + treaty + develop + exp + decade, family = binomial, data = foo)
+
+#matching with propensity score and checking balances
+mout_propensityscore <- Match(Tr=Tr, X=glm_propensity$fitted)
+
+mb  <- MatchBalance(Tr ~  wartype + logcost + wardur + factnum + 
+                        factnum2 + trnsfcap + 
+                        treaty + develop + exp + decade, 
+                    data=foo, match.out = mout_propensityscore, nboots=500)
+
+
+#adding the Y values to the matching
+#First Y is pbs2l
+mout_propensityscore_withYs <- Match(Y=foo$pbs2l, Tr=Tr, X=glm_propensity$fitted, BiasAdjust = TRUE)
+summary(mout_propensityscore_withYs)
+mout_propensityscore_withYs$est
+mout_propensityscore_withYs$est.noadj
+
+#MatchBalance for p-values, to see if we have good matches
+mb  <- MatchBalance(Tr ~  wartype + logcost + wardur + factnum + 
+                        factnum2 + trnsfcap + treaty + develop + exp + decade, data=foo, 
+                    match.out = mout_propensityscore_withYs, nboots=500)
+
+#Then we check for 5 years. Since pbs5l had missing values, I replaced them with Failure
+Y5 <- foo$pbs5l
+Y5[is.na(Y5)] <- 'Failure'
+
+mout_propensityscore_withYs5 <- Match(Y=Y5, Tr=Tr, X=glm_propensity$fitted, BiasAdjust = TRUE)
+summary(mout_propensityscore_withYs5)
+mout_propensityscore_withYs5$est
+mout_propensityscore_withYs5$est.noadj
+
+#MatchBalance for p-values, to see if we have good matches
+mb  <- MatchBalance(Tr ~  wartype + logcost + wardur + factnum + 
+                        factnum2 + trnsfcap + treaty + develop + exp + decade, data=foo, 
+                    match.out = mout_propensityscore_withYs5, nboots=500)
+
+#starting the genmatch
+X = cbind(foo$wartype, foo$logcost, foo$wardur, foo$factnum2, foo$trnsfcap, foo$treaty, foo$develop, foo$exp, foo$decade)
+
+genout = GenMatch(Tr = Tr, X = X, estimand = "ATT", M = 1, pop.size = 200, max.generations = 25, wait.generations = 7, nboots = 200)
+
+genmout2 <- Match(Y=foo$pbs2l, Tr=Tr, X=X, Weight.matrix = genout, BiasAdjust = TRUE)
+genmout5 <- Match(Y=Y5, Tr=Tr, X=X, Weight.matrix = genout, BiasAdjust = TRUE)
+
+summary(genmout2)
+genmout2$est
+genmout2$est.noadj
+#MatchBalance for p-values, to see if we have good matches
+mb  <- MatchBalance(Tr ~  wartype + logcost + wardur + factnum + 
+                        factnum2 + trnsfcap + treaty + develop + exp + decade, data=foo, 
+                    match.out = genmout2, nboots=500)
+
+summary(genmout5)
+genmout5$est
+genmout5$est.noadj
+#MatchBalance for p-values, to see if we have good matches
+mb  <- MatchBalance(Tr ~  wartype + logcost + wardur + factnum + 
+                        factnum2 + trnsfcap + treaty + develop + exp + decade, data=foo, 
+                    match.out = genmout5, nboots=500)
+
+
+#Treatment effects without matching
+glm1 <- glm(pbs2l ~ wartype + logcost + wardur + factnum + factnum2 + trnsfcap + treaty + develop + exp + decade, family = binomial, data = foo)
+glm2 <- glm(Y5 ~ Tr + wartype + logcost + wardur + factnum + factnum2 + trnsfcap + treaty + develop + exp + decade, family = binomial, data = foo)
+
+#to get the treatment coefficients for treatment effect
+summary(glm1)
+summary(glm2)
